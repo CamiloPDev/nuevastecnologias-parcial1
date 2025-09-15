@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pos;
 use App\Http\Controllers\Controller;
 use App\Models\Producto;
 use App\Models\Cliente;
+use App\Models\Venta;
 
 class PosController extends Controller
 {
@@ -13,10 +14,35 @@ class PosController extends Controller
      */
     public function index()
     {
-        $productos = Producto::all();
-        // Excluir el cliente de mostrador (ID = 1) de la lista
-        $clientes = Cliente::where('id', '!=', 1)->get();
-        
-        return view('pos.index', compact('productos', 'clientes'));
+        try {
+            // Obtener productos disponibles
+            $productos = Producto::orderBy('nombre')->get();
+            
+            // Obtener clientes existentes (todos los clientes registrados)
+            $clientes = Cliente::orderBy('nombre')->get();
+            
+            // Obtener estadísticas básicas del día (opcional)
+            $ventasHoy = Venta::whereDate('created_at', today())->count();
+            $montoHoy = Venta::whereDate('created_at', today())->sum('total');
+            
+            return view('pos.index', compact(
+                'productos', 
+                'clientes', 
+                'ventasHoy', 
+                'montoHoy'
+            ));
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al cargar POS: ' . $e->getMessage());
+            
+            // En caso de error, cargar vista con datos vacíos
+            return view('pos.index', [
+                'productos' => collect(),
+                'clientes' => collect(),
+                'ventasHoy' => 0,
+                'montoHoy' => 0,
+                'error' => 'Error al cargar datos del sistema'
+            ]);
+        }
     }
 }
